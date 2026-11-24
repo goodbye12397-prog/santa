@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Тайный Санта</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-bg-color, #ffffff);
+    --bg2: var(--tg-theme-secondary-bg-color, #f2f2f7);
+    --text: var(--tg-theme-text-color, #111111);
+    --hint: var(--tg-theme-hint-color, #8a8a8e);
+    --link: var(--tg-theme-link-color, #c0392b);
+    --btn: var(--tg-theme-button-color, #c0392b);
+    --btn-text: var(--tg-theme-button-text-color, #ffffff);
+    --danger: var(--tg-theme-destructive-text-color, #e53935);
+    --accent: #c0392b;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not(.tg) {
+      --bg: #1c1c1e; --bg2: #000000; --text: #f2f2f2; --hint: #8e8e93;
+      --link: #ff6b5b; --btn: #d9443a;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg2); color: var(--text);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 16px 16px 120px; }
+  .screen { display: none; }
+  .screen.on { display: block; animation: fade .18s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .hero { text-align: center; padding: 28px 8px 18px; }
+  .hero .big { font-size: 56px; line-height: 1; }
+  h1 { font-size: 24px; margin: 12px 0 6px; }
+  h2 { font-size: 20px; margin: 4px 0 14px; }
+  .muted { color: var(--hint); font-size: 14px; }
+
+  .card { background: var(--bg); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .q-label { font-weight: 600; margin-bottom: 2px; }
+  .q-label .req { color: var(--accent); }
+  .q-hint { color: var(--hint); font-size: 13px; margin-bottom: 8px; }
+
+  input[type=text], textarea {
+    width: 100%; border: 1px solid color-mix(in srgb, var(--hint) 35%, transparent);
+    background: var(--bg2); color: var(--text); border-radius: 10px;
+    padding: 11px 12px; font: inherit; outline: none; resize: vertical;
+  }
+  input[type=text]:focus, textarea:focus { border-color: var(--btn); }
+  textarea { min-height: 76px; }
+  .key-input { text-align: center; font-size: 22px; letter-spacing: 3px; text-transform: uppercase; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid color-mix(in srgb, var(--hint) 40%, transparent); background: var(--bg2);
+    color: var(--text); border-radius: 999px; padding: 7px 13px; font: inherit; font-size: 14px; cursor: pointer; }
+  .chip.on { background: var(--btn); color: var(--btn-text); border-color: var(--btn); }
+
+  .btn { display: block; width: 100%; border: 0; border-radius: 12px; padding: 14px; font: inherit;
+    font-weight: 600; background: var(--btn); color: var(--btn-text); cursor: pointer; }
+  .btn.ghost { background: var(--bg); color: var(--link); }
+  .btn:disabled { opacity: .55; }
+  .sticky { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--bg2) 70%, transparent); }
+  .sticky .btn { max-width: 528px; margin: 0 auto; }
+
+  .menu-item { display: flex; align-items: center; gap: 14px; background: var(--bg); border-radius: var(--radius);
+    padding: 16px; margin-bottom: 10px; cursor: pointer; border: 0; width: 100%; text-align: left; font: inherit; color: var(--text); }
+  .menu-item .ico { font-size: 28px; }
+  .menu-item .t { font-weight: 600; }
+  .menu-item .s { color: var(--hint); font-size: 14px; }
+  .menu-item .arr { margin-left: auto; color: var(--hint); font-size: 20px; }
+
+  .person { display: flex; align-items: center; justify-content: space-between; background: var(--bg);
+    padding: 14px 16px; border: 0; width: 100%; font: inherit; color: var(--text); cursor: pointer; text-align: left;
+    border-bottom: 1px solid color-mix(in srgb, var(--hint) 18%, transparent); }
+  .list { border-radius: var(--radius); overflow: hidden; margin-top: 12px; }
+  .list .person:last-child { border-bottom: 0; }
+  .person.empty { color: var(--hint); cursor: default; }
+  .badge { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--bg2); color: var(--hint); white-space: nowrap; }
+  .badge.ok { background: color-mix(in srgb, #2e7d32 18%, transparent); color: #2e9d3a; }
+
+  .ans { margin-bottom: 14px; }
+  .ans:last-child { margin-bottom: 0; }
+  .ans .k { color: var(--hint); font-size: 13px; }
+  .ans .v { white-space: pre-wrap; word-wrap: break-word; }
+  .ans.alert { background: color-mix(in srgb, var(--danger) 10%, transparent); border-radius: 10px; padding: 10px 12px; }
+  .ans.alert .k { color: var(--danger); font-weight: 600; }
+
+  .err { color: var(--danger); font-size: 14px; margin-top: 10px; min-height: 20px; text-align: center; }
+  .demo { background: #fff4d6; color: #6b4e00; border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
+  .toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: rgba(0,0,0,.82); color: #fff;
+    padding: 10px 16px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; }
+  .toast.on { opacity: 1; }
+  .spinner { width: 28px; height: 28px; border: 3px solid color-mix(in srgb, var(--hint) 30%, transparent);
+    border-top-color: var(--btn); border-radius: 50%; animation: spin .8s linear infinite; margin: 60px auto; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .topbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .back { background: none; border: 0; color: var(--link); font: inherit; padding: 6px 0; cursor: pointer; }
+  .tg .back { display: none; } /* в Telegram назад — системная кнопка */
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="demo" class="demo" hidden>Демо-режим: данные хранятся только в этом браузере. Ключи для пробы: <b>DEMO-0001</b>, <b>DEMO-0002</b>, <b>DEMO-0003</b>.</div>
+
+  <!-- Загрузка -->
+  <section id="s-loading" class="screen on"><div class="spinner"></div></section>
+
+  <!-- Вход по ключу -->
+  <section id="s-login" class="screen">
+    <div class="hero">
+      <div class="big">🎅</div>
+      <h1>Тайный Санта</h1>
+      <div class="muted">Введи свой личный ключ. Его выдаёт организатор.</div>
+    </div>
+    <div class="card">
+      <input id="key" class="key-input" type="text" placeholder="ABC-123" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <div id="login-err" class="err"></div>
+      <button id="login-btn" class="btn">Войти</button>
+    </div>
+  </section>
+
+  <!-- Главная -->
+  <section id="s-home" class="screen">
+    <div class="hero">
+      <div class="big">🎄</div>
+      <h1 id="hello">Привет!</h1>
+      <div id="home-status" class="muted"></div>
+    </div>
+    <button class="menu-item" data-go="form">
+      <span class="ico">📝</span>
+      <span><div class="t" id="form-title">Заполнить анкету</div><div class="s">Интересы, аллергии, пожелания</div></span>
+      <span class="arr">›</span>
+    </button>
+    <button class="menu-item" data-go="search">
+      <span class="ico">🔎</span>
+      <span><div class="t">Найти анкету</div><div class="s">Посмотреть, что любит твой подопечный</div></span>
+      <span class="arr">›</span>
+    </button>
+    <button class="menu-item" data-go="mine">
+      <span class="ico">👀</span>
+      <span><div class="t">Моя анкета</div><div class="s">Как её видят другие</div></span>
+      <span class="arr">›</span>
+    </button>
+    <p class="muted" style="text-align:center;margin-top:24px"><a href="#" id="logout" style="color:var(--hint)">Выйти</a></p>
+  </section>
+
+  <!-- Анкета -->
+  <section id="s-form" class="screen">
+    <div class="topbar"><button class="back" data-back>‹ Назад</button></div>
+    <h2>Моя анкета</h2>
+    <div id="form-fields"></div>
+    <div id="form-err" class="err"></div>
+    <div class="sticky"><button id="save-btn" class="btn">Сохранить</button></div>
+  </section>
+
+  <!-- Поиск -->
+  <section id="s-search" class="screen">
+    <div class="topbar"><button class="back" data-back>‹ Назад</button></div>
+    <h2>Чью анкету открыть?</h2>
+    <input id="search" type="text" placeholder="Начни вводить имя" autocomplete="off">
+    <div id="people" class="list"></div>
+  </section>
+
+  <!-- Просмотр -->
+  <section id="s-view" class="screen">
+    <div class="topbar"><button class="back" data-back>‹ Назад</button></div>
+    <div class="hero" style="padding-top:8px"><div class="big">🎁</div><h1 id="view-name"></h1></div>
+    <div id="view-body"></div>
+  </section>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+/* ================== НАСТРОЙКИ ================== */
+// Ссылка на веб-приложение Apps Script (Развернуть → Веб-приложение).
+// Пусто — включается демо-режим без сервера.
+const API_URL = 'https://script.google.com/macros/s/AKfycby8W9vp9nCujwNQzf8DgAi_roTHwQAtvOpIVNpib24fWG9viYeMPBP3ftrYdpjs_SdFSA/exec';
+
+// Вопросы анкеты. Их можно менять: каждый вопрос становится колонкой в таблице.
+// type: text | textarea | chips (несколько вариантов) | choice (один вариант)
+const QUESTIONS = [
+  { id: 'call', label: 'Как к тебе обращаться?', type: 'text', placeholder: 'Имя или как тебе приятнее' },
+  { id: 'interests', label: 'Чем увлекаешься?', hint: 'Хобби, интересы, чем занимаешься в свободное время', type: 'textarea', required: true },
+  { id: 'likes', label: 'Что тебе нравится?', hint: 'Выбери всё, что подходит', type: 'chips',
+    options: ['Сладкое', 'Чай', 'Кофе', 'Книги', 'Видеоигры', 'Настолки', 'Аниме', 'Фильмы и сериалы', 'Музыка', 'Спорт',
+              'Косметика и уход', 'Канцелярия', 'Гаджеты', 'Одежда и аксессуары', 'Свечи и декор', 'Растения', 'Рисование и творчество', 'Мягкие игрушки'] },
+  { id: 'likes_more', label: 'Если подробнее', hint: 'Любимые фандомы, группы, игры, вкусы, бренды — всё, что подскажет с подарком', type: 'textarea' },
+  { id: 'sweets', label: 'Как относишься к сладкому?', type: 'choice', options: ['Обожаю', 'Нормально', 'Не ем сладкое'] },
+  { id: 'allergy', label: 'Аллергии и что тебе нельзя', hint: 'Еда, запахи, материалы, шерсть. Если ничего — напиши «нет»', type: 'textarea', required: true, alert: true },
+  { id: 'no_gift', label: 'Что тебе точно не дарить?', type: 'textarea', alert: true },
+  { id: 'colors', label: 'Любимые цвета', type: 'text' },
+  { id: 'size', label: 'Размер одежды', hint: 'Если не против', type: 'choice', options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Не скажу'] },
+  { id: 'wish', label: 'Мечта или пожелание', hint: 'Что-то, что давно хочется. Можно намёком', type: 'textarea' },
+];
+/* ============================================== */
+
+const tg = window.Telegram && window.Telegram.WebApp;
+const inTelegram = !!(tg && tg.initData);
+const DEMO = !API_URL;
+const $ = (id) => document.getElementById(id);
+
+const state = { key: '', name: '', answers: null, people: [], draft: {}, stack: [] };
+
+/* ---------- Хранилище ключа (облако Telegram или браузер) ---------- */
+const store = {
+  get(k) {
+    return new Promise((res) => {
+      if (inTelegram && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9')) {
+        tg.CloudStorage.getItem(k, (err, v) => res(err ? lsGet(k) : (v || lsGet(k))));
+      } else res(lsGet(k));
+    });
+  },
+  set(k, v) {
+    try { localStorage.setItem(k, v); } catch (e) {}
+    if (inTelegram && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9')) {
+      try { v ? tg.CloudStorage.setItem(k, v) : tg.CloudStorage.removeItem(k); } catch (e) {}
+    }
+  },
+};
+function lsGet(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+
+/* ---------- API ---------- */
+async function api(action, data = {}) {
+  const body = { action, key: state.key, initData: inTelegram ? tg.initData : '', ...data };
+  if (DEMO) return demoApi(body);
+  let res;
+  try {
+    // text/plain — чтобы Google не требовал предварительный CORS-запрос
+    res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body) });
+  } catch (e) {
+    throw new Error('Нет связи с сервером. Проверь интернет');
+  }
+  let json;
+  try { json = await res.json(); } catch (e) { throw new Error('Сервер ответил непонятно. Напиши организатору'); }
+  if (!json.ok) throw new Error(json.error || 'Ошибка');
+  return json;
+}
+
+/* ---------- Демо-бэкенд (без сервера) ---------- */
+function demoApi(req) {
+  return new Promise((resolve, reject) => setTimeout(() => {
+    let db;
+    try { db = JSON.parse(localStorage.getItem('santa_demo_db') || 'null'); } catch (e) { db = null; }
+    if (!db) {
+      db = { people: [
+        { name: 'Аня Петрова', key: 'DEMO0001' }, { name: 'Борис Смирнов', key: 'DEMO0002' },
+        { name: 'Вика Иванова', key: 'DEMO0003' }, { name: 'Гоша Кузнецов', key: 'DEMO0004' },
+      ], answers: { 'Вика Иванова': { call: 'Вика', interests: 'Рисую скетчи, хожу на йогу, смотрю корейские дорамы',
+        likes: ['Чай', 'Рисование и творчество', 'Свечи и декор'], sweets: 'Нормально',
+        allergy: 'Орехи! И не люблю резкие сладкие запахи', no_gift: 'Кружки — их уже 20 штук', colors: 'Зелёный, бежевый', size: 'S',
+        wish: 'Хорошие акварельные кисти' } } };
+    }
+    const save = () => { try { localStorage.setItem('santa_demo_db', JSON.stringify(db)); } catch (e) {} };
+    const k = String(req.key || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const me = db.people.find((p) => p.key === k);
+    if (!me) return reject(new Error('Такого ключа нет. Проверь, нет ли опечатки'));
+    const people = () => db.people.map((p) => ({ name: p.name, filled: !!db.answers[p.name] }));
+    if (req.action === 'login') return resolve({ ok: true, name: me.name, answers: db.answers[me.name] || null, people: people() });
+    if (req.action === 'list') return resolve({ ok: true, people: people() });
+    if (req.action === 'save') { db.answers[me.name] = req.answers; save(); return resolve({ ok: true, updated: new Date().toISOString() }); }
+    if (req.action === 'get') {
+      const p = db.people.find((x) => x.name.toLowerCase() === String(req.name).toLowerCase());
+      if (!p) return reject(new Error('Такого участника нет'));
+      return resolve({ ok: true, name: p.name, answers: db.answers[p.name] || null });
+    }
+    reject(new Error('Неизвестное действие'));
+  }, 350));
+}
+
+/* ---------- Навигация ---------- */
+function show(id, push = true) {
+  const cur = document.querySelector('.screen.on');
+  if (push && cur && cur.id !== 's-loading' && cur.id !== 's-login') state.stack.push(cur.id.slice(2));
+  document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('on', s.id === 's-' + id));
+  window.scrollTo(0, 0);
+  if (inTelegram) {
+    if (state.stack.length && id !== 'home' && id !== 'login') tg.BackButton.show(); else tg.BackButton.hide();
+  }
+}
+function back() {
+  const prev = state.stack.pop() || 'home';
+  if (prev === 'home') refreshHome();
+  show(prev, false);
+}
+document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', back));
+if (inTelegram) tg.BackButton.onClick(back);
+
+function toast(text) {
+  const t = $('toast'); t.textContent = text; t.classList.add('on');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), 2200);
+}
+function haptic(type) { try { tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred(type); } catch (e) {} }
+function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+/* ---------- Вход ---------- */
+async function login(key, silent) {
+  state.key = key;
+  $('login-err').textContent = '';
+  $('login-btn').disabled = true;
+  try {
+    const r = await api('login');
+    state.name = r.name; state.answers = r.answers; state.people = r.people || [];
+    store.set('santa_key', key);
+    state.stack = [];
+    refreshHome();
+    show('home', false);
+    if (!silent) haptic('success');
+  } catch (e) {
+    if (silent) { store.set('santa_key', ''); show('login', false); }
+    else { $('login-err').textContent = e.message; haptic('error'); }
+  } finally {
+    $('login-btn').disabled = false;
+  }
+}
+$('login-btn').addEventListener('click', () => {
+  const k = $('key').value.trim();
+  if (!k) { $('login-err').textContent = 'Введи ключ'; return; }
+  login(k);
+});
+$('key').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('login-btn').click(); });
+$('logout').addEventListener('click', (e) => {
+  e.preventDefault();
+  store.set('santa_key', ''); state.key = ''; $('key').value = '';
+  show('login', false);
+});
+
+/* ---------- Главная ---------- */
+function refreshHome() {
+  const first = (state.answers && state.answers.call) || state.name.split(' ')[0];
+  $('hello').textContent = 'Привет, ' + first + '!';
+  const filled = state.people.filter((p) => p.filled).length;
+  $('home-status').textContent = (state.answers ? 'Твоя анкета заполнена ✓' : 'Твоя анкета ещё не заполнена')
+    + ' · заполнили ' + filled + ' из ' + state.people.length;
+  $('form-title').textContent = state.answers ? 'Изменить анкету' : 'Заполнить анкету';
+}
+document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => {
+  const go = b.dataset.go;
+  if (go === 'form') openForm();
+  if (go === 'search') openSearch();
+  if (go === 'mine') openView(state.name);
+}));
+
+/* ---------- Анкета ---------- */
+function openForm() {
+  state.draft = JSON.parse(JSON.stringify(state.answers || {}));
+  const box = $('form-fields');
+  box.innerHTML = '';
+  QUESTIONS.forEach((q) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = '<div class="q-label">' + esc(q.label) + (q.required ? ' <span class="req">*</span>' : '') + '</div>'
+      + (q.hint ? '<div class="q-hint">' + esc(q.hint) + '</div>' : '<div style="height:6px"></div>');
+    const val = state.draft[q.id];
+    if (q.type === 'text' || q.type === 'textarea') {
+      const el = document.createElement(q.type === 'text' ? 'input' : 'textarea');
+      if (q.type === 'text') el.type = 'text';
+      el.placeholder = q.placeholder || '';
+      el.maxLength = 1500;
+      el.value = typeof val === 'string' ? val : '';
+      el.addEventListener('input', () => { state.draft[q.id] = el.value; });
+      card.appendChild(el);
+    } else {
+      const multi = q.type === 'chips';
+      let chosen = multi ? (Array.isArray(val) ? val.slice() : []) : (val || '');
+      const wrap = document.createElement('div');
+      wrap.className = 'chips';
+      q.options.forEach((opt) => {
+        const c = document.createElement('button');
+        c.type = 'button'; c.className = 'chip'; c.textContent = opt;
+        const on = multi ? chosen.includes(opt) : chosen === opt;
+        c.classList.toggle('on', on);
+        c.addEventListener('click', () => {
+          if (multi) {
+            chosen = chosen.includes(opt) ? chosen.filter((x) => x !== opt) : chosen.concat(opt);
+            c.classList.toggle('on');
+          } else {
+            chosen = chosen === opt ? '' : opt;
+            wrap.querySelectorAll('.chip').forEach((x) => x.classList.toggle('on', x.textContent === chosen));
+          }
+          state.draft[q.id] = chosen;
+          try { tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged(); } catch (e) {}
+        });
+        wrap.appendChild(c);
+      });
+      card.appendChild(wrap);
+    }
+    box.appendChild(card);
+  });
+  $('form-err').textContent = '';
+  show('form');
+}
+
+$('save-btn').addEventListener('click', async () => {
+  const missing = QUESTIONS.filter((q) => q.required && !String(state.draft[q.id] || '').trim());
+  if (missing.length) {
+    $('form-err').textContent = 'Заполни обязательные поля: ' + missing.map((q) => '«' + q.label + '»').join(', ');
+    haptic('error');
+    return;
+  }
+  const answers = {}, labels = {};
+  QUESTIONS.forEach((q) => {
+    let v = state.draft[q.id];
+    if (v == null) v = q.type === 'chips' ? [] : '';
+    answers[q.id] = Array.isArray(v) ? v : String(v).trim();
+    labels[q.id] = q.label;
+  });
+  $('save-btn').disabled = true; $('save-btn').textContent = 'Сохраняю…'; $('form-err').textContent = '';
+  try {
+    await api('save', { answers, labels });
+    state.answers = answers;
+    const me = state.people.find((p) => p.name === state.name);
+    if (me) me.filled = true;
+    haptic('success');
+    toast('Анкета сохранена 🎉');
+    back();
+  } catch (e) {
+    $('form-err').textContent = e.message; haptic('error');
+  } finally {
+    $('save-btn').disabled = false; $('save-btn').textContent = 'Сохранить';
+  }
+});
+
+/* ---------- Поиск ---------- */
+function renderPeople() {
+  const q = $('search').value.trim().toLowerCase();
+  const list = state.people
+    .filter((p) => p.name !== state.name && p.name.toLowerCase().includes(q))
+    .sort((a, b) => (b.filled - a.filled) || a.name.localeCompare(b.name, 'ru'));
+  const box = $('people');
+  if (!list.length) { box.innerHTML = '<div class="person empty">Никого не нашли</div>'; return; }
+  box.innerHTML = list.map((p) =>
+    '<button class="person' + (p.filled ? '' : ' empty') + '" data-name="' + esc(p.name) + '"' + (p.filled ? '' : ' disabled') + '>'
+    + '<span>' + esc(p.name) + '</span>'
+    + '<span class="badge' + (p.filled ? ' ok' : '') + '">' + (p.filled ? 'анкета есть' : 'пока не заполнено') + '</span></button>'
+  ).join('');
+  box.querySelectorAll('.person[data-name]:not([disabled])').forEach((b) => b.addEventListener('click', () => openView(b.dataset.name)));
+}
+$('search').addEventListener('input', renderPeople);
+async function openSearch() {
+  $('search').value = '';
+  renderPeople();
+  show('search');
+  try { const r = await api('list'); state.people = r.people; renderPeople(); } catch (e) { /* покажем то, что уже есть */ }
+}
+
+/* ---------- Просмотр ---------- */
+async function openView(name) {
+  $('view-name').textContent = name;
+  $('view-body').innerHTML = '<div class="spinner"></div>';
+  show('view');
+  try {
+    const r = await api('get', { name });
+    $('view-name').textContent = r.name;
+    const a = r.answers;
+    if (!a) { $('view-body').innerHTML = '<div class="card muted" style="text-align:center">Анкета пока не заполнена</div>'; return; }
+    const rows = QUESTIONS.map((q) => {
+      let v = a[q.id];
+      if (Array.isArray(v)) v = v.join(', ');
+      v = String(v || '').trim();
+      if (!v) return '';
+      const isAlert = q.alert && !/^(нет|ничего|-|—)\.?$/i.test(v);
+      return '<div class="ans' + (isAlert ? ' alert' : '') + '"><div class="k">' + (isAlert ? '⚠️ ' : '') + esc(q.label) + '</div><div class="v">' + esc(v) + '</div></div>';
+    }).join('');
+    $('view-body').innerHTML = '<div class="card">' + (rows || '<span class="muted">Пусто</span>') + '</div>';
+  } catch (e) {
+    $('view-body').innerHTML = '<div class="card err">' + esc(e.message) + '</div>';
+  }
+}
+
+/* ---------- Старт ---------- */
+(async function init() {
+  if (inTelegram) {
+    document.documentElement.classList.add('tg');
+    tg.ready(); tg.expand();
+    try { tg.setHeaderColor('secondary_bg_color'); } catch (e) {}
+  }
+  if (DEMO) $('demo').hidden = false;
+  const saved = await store.get('santa_key');
+  if (saved) login(saved, true); else show('login', false);
+})();
+</script>
+</body>
+</html>
