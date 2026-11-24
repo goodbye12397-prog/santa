@@ -99,11 +99,38 @@
   .topbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .back { background: none; border: 0; color: var(--link); font: inherit; padding: 6px 0; cursor: pointer; }
   .tg .back { display: none; } /* в Telegram назад — системная кнопка */
+
+  /* Админка */
+  .row2 { display: flex; gap: 8px; }
+  .row2 input { flex: 1; }
+  .row2 .btn { width: auto; padding: 0 18px; white-space: nowrap; }
+  .newkey { text-align: center; }
+  .newkey .kv { font: 600 28px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 2px; margin: 6px 0 12px; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btns .btn { flex: 1; min-width: 130px; padding: 11px; font-size: 14px; }
+  .btn.small { padding: 9px 12px; font-size: 14px; }
+  .btn.danger { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+  .btn.soft { background: var(--bg2); color: var(--text); }
+  .stats { display: flex; gap: 8px; margin-bottom: 12px; }
+  .stat { flex: 1; background: var(--bg); border-radius: var(--radius); padding: 12px; text-align: center; }
+  .stat b { display: block; font-size: 22px; }
+  .stat span { color: var(--hint); font-size: 12px; }
+  .ap { background: var(--bg); border-bottom: 1px solid color-mix(in srgb, var(--hint) 18%, transparent); }
+  .ap:last-child { border-bottom: 0; }
+  .ap-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; cursor: pointer; width: 100%;
+    background: none; border: 0; font: inherit; color: var(--text); text-align: left; }
+  .ap-name { flex: 1; min-width: 0; }
+  .ap-name .n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ap-name .m { color: var(--hint); font-size: 13px; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .ap-body { display: none; padding: 0 16px 14px; }
+  .ap.open .ap-body { display: block; }
+  .ap-body .btns { margin-top: 4px; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div id="demo" class="demo" hidden>Демо-режим: данные хранятся только в этом браузере. Ключи для пробы: <b>DEMO-0001</b>, <b>DEMO-0002</b>, <b>DEMO-0003</b>.</div>
+  <div id="demo" class="demo" hidden>Демо-режим: данные хранятся только в этом браузере. Ключи для пробы: <b>DEMO-0001</b> (админ), <b>DEMO-0002</b>, <b>DEMO-0003</b>.</div>
 
   <!-- Загрузка -->
   <section id="s-loading" class="screen on"><div class="spinner"></div></section>
@@ -144,7 +171,31 @@
       <span><div class="t">Моя анкета</div><div class="s">Как её видят другие</div></span>
       <span class="arr">›</span>
     </button>
+    <button class="menu-item" data-go="admin" id="admin-entry" hidden>
+      <span class="ico">🛠</span>
+      <span><div class="t">Админка</div><div class="s">Участники, ключи, кто заполнил</div></span>
+      <span class="arr">›</span>
+    </button>
     <p class="muted" style="text-align:center;margin-top:24px"><a href="#" id="logout" style="color:var(--hint)">Выйти</a></p>
+  </section>
+
+  <!-- Админка -->
+  <section id="s-admin" class="screen">
+    <div class="topbar"><button class="back" data-back>‹ Назад</button></div>
+    <h2>Админка</h2>
+    <div class="stats" id="adm-stats"></div>
+    <div class="card">
+      <div class="q-label">Новый участник</div>
+      <div class="q-hint">Впиши имя. Ключ создастся сразу и будет привязан к этому имени</div>
+      <div class="row2">
+        <input id="adm-name" type="text" placeholder="Имя Фамилия" maxlength="60" autocomplete="off">
+        <button id="adm-add" class="btn">Создать</button>
+      </div>
+      <div id="adm-err" class="err" style="min-height:0"></div>
+    </div>
+    <div id="adm-new" class="card newkey" hidden></div>
+    <div class="list" id="adm-list"></div>
+    <p class="muted" style="text-align:center;margin-top:16px">Нажми на участника, чтобы скопировать или отправить ключ</p>
   </section>
 
   <!-- Анкета -->
@@ -177,6 +228,8 @@
 /* ================== НАСТРОЙКИ ================== */
 // Ссылка на веб-приложение Apps Script (Развернуть → Веб-приложение).
 // Пусто — включается демо-режим без сервера.
+// Ссылка на бота (например 'https://t.me/santa_gr_bot') — попадает в приглашение с ключом.
+const BOT_LINK = '';
 const API_URL = 'https://script.google.com/macros/s/AKfycby8W9vp9nCujwNQzf8DgAi_roTHwQAtvOpIVNpib24fWG9viYeMPBP3ftrYdpjs_SdFSA/exec';
 
 // Вопросы анкеты. Их можно менять: каждый вопрос становится колонкой в таблице.
@@ -258,7 +311,31 @@ function demoApi(req) {
     const me = db.people.find((p) => p.key === k);
     if (!me) return reject(new Error('Такого ключа нет. Проверь, нет ли опечатки'));
     const people = () => db.people.map((p) => ({ name: p.name, filled: !!db.answers[p.name] }));
-    if (req.action === 'login') return resolve({ ok: true, name: me.name, answers: db.answers[me.name] || null, people: people() });
+    const isAdmin = (p) => p.key === 'DEMO0001';
+    if (String(req.action).startsWith('admin_')) {
+      if (!isAdmin(me)) return reject(new Error('Нет прав администратора'));
+      const list = () => db.people.map((p) => ({ name: p.name, key: p.key.slice(0, 4) + '-' + p.key.slice(4), tg: p.tg || '', bound: !!p.tg, filled: !!db.answers[p.name], admin: isAdmin(p) }));
+      const mk = () => { const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 8; i++) s += A[Math.floor(Math.random() * A.length)]; return s; };
+      const find = () => db.people.find((p) => p.name.toLowerCase() === String(req.name || '').trim().toLowerCase());
+      if (req.action === 'admin_list') return resolve({ ok: true, people: list() });
+      if (req.action === 'admin_add') {
+        const name = String(req.name || '').trim();
+        if (!name) return reject(new Error('Введи имя'));
+        if (find()) return reject(new Error('Участник с таким именем уже есть'));
+        const p = { name, key: mk() }; db.people.push(p); save();
+        return resolve({ ok: true, name, key: p.key.slice(0, 4) + '-' + p.key.slice(4), people: list() });
+      }
+      const p = find();
+      if (!p) return reject(new Error('Такого участника нет'));
+      if (req.action === 'admin_reset') { delete p.tg; save(); return resolve({ ok: true, people: list() }); }
+      if (req.action === 'admin_newkey') { p.key = mk(); delete p.tg; save(); return resolve({ ok: true, key: p.key.slice(0, 4) + '-' + p.key.slice(4), people: list() }); }
+      if (req.action === 'admin_delete') {
+        if (isAdmin(p)) return reject(new Error('Администратора удалить нельзя'));
+        db.people = db.people.filter((x) => x !== p); delete db.answers[p.name]; save();
+        return resolve({ ok: true, people: list() });
+      }
+    }
+    if (req.action === 'login') return resolve({ ok: true, name: me.name, admin: isAdmin(me), answers: db.answers[me.name] || null, people: people() });
     if (req.action === 'list') return resolve({ ok: true, people: people() });
     if (req.action === 'save') { db.answers[me.name] = req.answers; save(); return resolve({ ok: true, updated: new Date().toISOString() }); }
     if (req.action === 'get') {
@@ -302,7 +379,7 @@ async function login(key, silent) {
   $('login-btn').disabled = true;
   try {
     const r = await api('login');
-    state.name = r.name; state.answers = r.answers; state.people = r.people || [];
+    state.name = r.name; state.answers = r.answers; state.people = r.people || []; state.admin = !!r.admin;
     store.set('santa_key', key);
     state.stack = [];
     refreshHome();
@@ -323,7 +400,7 @@ $('login-btn').addEventListener('click', () => {
 $('key').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('login-btn').click(); });
 $('logout').addEventListener('click', (e) => {
   e.preventDefault();
-  store.set('santa_key', ''); state.key = ''; $('key').value = '';
+  store.set('santa_key', ''); state.key = ''; state.admin = false; $('key').value = '';
   show('login', false);
 });
 
@@ -335,12 +412,14 @@ function refreshHome() {
   $('home-status').textContent = (state.answers ? 'Твоя анкета заполнена ✓' : 'Твоя анкета ещё не заполнена')
     + ' · заполнили ' + filled + ' из ' + state.people.length;
   $('form-title').textContent = state.answers ? 'Изменить анкету' : 'Заполнить анкету';
+  $('admin-entry').hidden = !state.admin;
 }
 document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => {
   const go = b.dataset.go;
   if (go === 'form') openForm();
   if (go === 'search') openSearch();
   if (go === 'mine') openView(state.name);
+  if (go === 'admin') openAdmin();
 }));
 
 /* ---------- Анкета ---------- */
@@ -468,6 +547,132 @@ async function openView(name) {
   } catch (e) {
     $('view-body').innerHTML = '<div class="card err">' + esc(e.message) + '</div>';
   }
+}
+
+/* ---------- Админка ---------- */
+state.adminPeople = [];
+state.openRow = '';
+
+function inviteText(p) {
+  return '🎅 Тайный Санта\n\n' + p.name + ', твой личный ключ: ' + p.key + '\n\n'
+    + (BOT_LINK ? 'Открой бота ' + BOT_LINK + ', ' : 'Открой бота, ')
+    + 'нажми кнопку «Анкета» и введи ключ. Никому его не передавай.';
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy'); ta.remove(); return ok;
+  } catch (e) { return false; }
+}
+
+function shareInvite(p) {
+  const text = inviteText(p);
+  const url = 'https://t.me/share/url?url=' + encodeURIComponent(BOT_LINK || ' ') + '&text=' + encodeURIComponent(text);
+  if (inTelegram && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
+}
+
+function confirmBox(text) {
+  return new Promise((res) => {
+    if (inTelegram && tg.showConfirm && tg.isVersionAtLeast && tg.isVersionAtLeast('6.2')) tg.showConfirm(text, (ok) => res(!!ok));
+    else res(window.confirm(text));
+  });
+}
+
+function renderAdmin() {
+  const ps = state.adminPeople;
+  const bound = ps.filter((p) => p.bound).length, filled = ps.filter((p) => p.filled).length;
+  $('adm-stats').innerHTML =
+    '<div class="stat"><b>' + ps.length + '</b><span>участников</span></div>'
+    + '<div class="stat"><b>' + bound + '</b><span>вошли</span></div>'
+    + '<div class="stat"><b>' + filled + '</b><span>заполнили</span></div>';
+  const box = $('adm-list');
+  if (!ps.length) { box.innerHTML = '<div class="person empty">Пока никого</div>'; return; }
+  box.innerHTML = ps.map((p, i) => {
+    const status = p.filled ? '<span class="badge ok">анкета ✓</span>'
+      : p.bound ? '<span class="badge">вошёл(ла)</span>' : '<span class="badge">не входил(а)</span>';
+    return '<div class="ap' + (state.openRow === p.name ? ' open' : '') + '" data-i="' + i + '">'
+      + '<button class="ap-head"><span class="ap-name"><div class="n">' + esc(p.name) + (p.admin ? ' 🛠' : '') + '</div>'
+      + '<div class="m"><span class="mono">' + esc(p.key || '—') + '</span>' + (p.tg ? ' · ' + esc(p.tg) : '') + '</div></span>' + status + '</button>'
+      + '<div class="ap-body"><div class="btns">'
+      + '<button class="btn small" data-act="share">Отправить в TG</button>'
+      + '<button class="btn small soft" data-act="copy">Скопировать</button>'
+      + '</div><div class="btns">'
+      + (p.bound ? '<button class="btn small soft" data-act="reset">Отвязать Telegram</button>' : '')
+      + '<button class="btn small soft" data-act="newkey">Новый ключ</button>'
+      + (p.admin ? '' : '<button class="btn small danger" data-act="delete">Удалить</button>')
+      + '</div></div></div>';
+  }).join('');
+  box.querySelectorAll('.ap').forEach((el) => {
+    const p = ps[+el.dataset.i];
+    el.querySelector('.ap-head').addEventListener('click', () => {
+      state.openRow = state.openRow === p.name ? '' : p.name;
+      renderAdmin();
+    });
+    el.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => adminAct(b.dataset.act, p, b)));
+  });
+}
+
+async function adminAct(act, p, btn) {
+  if (act === 'copy') { (await copyText(inviteText(p))) ? toast('Приглашение скопировано') : toast('Не получилось скопировать'); return; }
+  if (act === 'share') { shareInvite(p); return; }
+  const ask = {
+    reset: 'Отвязать Telegram у «' + p.name + '»? Ключ снова сможет ввести любой аккаунт.',
+    newkey: 'Выдать «' + p.name + '» новый ключ? Старый перестанет работать.',
+    delete: 'Удалить «' + p.name + '» и его анкету? Это не отменить.',
+  }[act];
+  if (!(await confirmBox(ask))) return;
+  btn.disabled = true;
+  try {
+    const r = await api('admin_' + act, { name: p.name });
+    state.adminPeople = r.people;
+    if (act === 'newkey') showNewKey({ name: p.name, key: r.key });
+    if (act === 'delete') state.openRow = '';
+    renderAdmin();
+    haptic('success');
+    toast({ reset: 'Telegram отвязан', newkey: 'Новый ключ выдан', delete: 'Участник удалён' }[act]);
+  } catch (e) { toast(e.message); haptic('error'); btn.disabled = false; }
+}
+
+function showNewKey(p) {
+  const box = $('adm-new');
+  box.hidden = false;
+  box.innerHTML = '<div class="muted">Ключ для ' + esc(p.name) + '</div><div class="kv">' + esc(p.key) + '</div>'
+    + '<div class="btns"><button class="btn small" id="nk-share">Отправить в TG</button>'
+    + '<button class="btn small soft" id="nk-copy">Скопировать</button></div>';
+  $('nk-share').addEventListener('click', () => shareInvite(p));
+  $('nk-copy').addEventListener('click', async () => { (await copyText(inviteText(p))) ? toast('Приглашение скопировано') : toast('Не получилось скопировать'); });
+  box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+$('adm-add').addEventListener('click', async () => {
+  const name = $('adm-name').value.trim();
+  $('adm-err').textContent = '';
+  if (!name) { $('adm-err').textContent = 'Впиши имя'; return; }
+  $('adm-add').disabled = true;
+  try {
+    const r = await api('admin_add', { name });
+    state.adminPeople = r.people;
+    $('adm-name').value = '';
+    renderAdmin();
+    showNewKey({ name: r.name, key: r.key });
+    haptic('success');
+  } catch (e) { $('adm-err').textContent = e.message; haptic('error'); }
+  finally { $('adm-add').disabled = false; }
+});
+$('adm-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('adm-add').click(); });
+
+async function openAdmin() {
+  $('adm-new').hidden = true;
+  $('adm-err').textContent = '';
+  $('adm-list').innerHTML = '<div class="spinner"></div>';
+  $('adm-stats').innerHTML = '';
+  show('admin');
+  try { const r = await api('admin_list'); state.adminPeople = r.people; renderAdmin(); }
+  catch (e) { $('adm-list').innerHTML = '<div class="card err">' + esc(e.message) + '</div>'; }
 }
 
 /* ---------- Старт ---------- */
